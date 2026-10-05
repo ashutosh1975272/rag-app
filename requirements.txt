@@ -1,0 +1,10 @@
+# Pinned 2026-10-05 via `pip index versions` (T-000). Python 3.12.
+streamlit==1.65.0
+openai==3.24.0
+psycopg[binary]==3.2.12
+pgvector==0.5.0
+pypdf==6.19.0
+requests==2.34.2
+pytest==9.1.1
+pytest-cov==7.1.0
+ruff==0.16.10
