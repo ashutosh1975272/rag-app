@@ -2,7 +2,7 @@
 
 import pytest
 
-from rag.chunking import make_splitter, split_text
+from rag.chunking import count_tokens, make_splitter, split_text
 
 SENTENCES = (
     "The quick brown fox jumps over the lazy dog. "
@@ -44,3 +44,9 @@ def test_invalid_sizes_rejected():
         make_splitter(chunk_size=10, chunk_overlap=10)
     with pytest.raises(ValueError):
         make_splitter(chunk_size=10, chunk_overlap=-1)
+
+
+def test_count_tokens_uses_tiktoken():
+    assert count_tokens("") == 0
+    assert count_tokens("hello") == 1
+    assert count_tokens("hello world") == 2
