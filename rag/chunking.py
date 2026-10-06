@@ -33,3 +33,5 @@ def split_text(
     if not text or not text.strip():
         return []
     return make_splitter(chunk_size, chunk_overlap).split_text(text)
+
+import os  # INTENTIONAL CI VIOLATION (F401) - reverted next commit
