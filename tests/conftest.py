@@ -36,10 +36,7 @@ def _test_dbname(url: str) -> str:
     return name
 
 
-@pytest.fixture(scope="session")
-def test_db_url():
-    assert rag_db.is_local_database_url(LOCAL_URL), "refusing non-local test DB"
-    dbname = _test_dbname(LOCAL_URL)
+def _ensure_database(dbname: str) -> None:
     with psycopg.connect(MAINT_URL, autocommit=True) as conn:
         exists = conn.execute(
             "SELECT 1 FROM pg_database WHERE datname = %s", (dbname,)
@@ -48,6 +45,12 @@ def test_db_url():
             conn.execute(
                 sql.SQL("CREATE DATABASE {}").format(sql.Identifier(dbname))
             )
+
+
+@pytest.fixture(scope="session")
+def test_db_url():
+    assert rag_db.is_local_database_url(LOCAL_URL), "refusing non-local test DB"
+    _ensure_database(_test_dbname(LOCAL_URL))
     return LOCAL_URL
 
 
@@ -68,15 +71,7 @@ def migrated_db(test_db_url):
 def empty_db_url(test_db_url):
     """A second migrated database that tests keep empty (no rows)."""
     assert rag_db.is_local_database_url(EMPTY_URL), "refusing non-local test DB"
-    dbname = _test_dbname(EMPTY_URL)
-    with psycopg.connect(MAINT_URL, autocommit=True) as conn:
-        exists = conn.execute(
-            "SELECT 1 FROM pg_database WHERE datname = %s", (dbname,)
-        ).fetchone()
-        if not exists:
-            conn.execute(
-                sql.SQL("CREATE DATABASE {}").format(sql.Identifier(dbname))
-            )
+    _ensure_database(_test_dbname(EMPTY_URL))
     rag_migrate.migrate(EMPTY_URL)
     with psycopg.connect(EMPTY_URL, autocommit=True) as conn:
         conn.execute("DELETE FROM chunks")
