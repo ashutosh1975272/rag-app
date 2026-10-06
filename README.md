@@ -49,7 +49,7 @@ docker compose up -d db redis
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # fill in NVIDIA_API_KEY (never commit .env)
-set -a; source .env; set +a
+set -a; . ./.env; set +a
 alembic upgrade head   # create tables (tests migrate their own DBs)
 pytest -q              # unit suite (localhost DBs only)
 streamlit run app.py --server.address=127.0.0.1   # http://localhost:8501

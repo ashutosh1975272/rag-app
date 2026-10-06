@@ -5,7 +5,7 @@
 - Is Postgres up? `docker compose ps db`, then
   `docker compose logs db | tail -n 20`.
 - Is `DATABASE_URL` exported? Alembic reads the env, not `.env`:
-  `set -a; source .env; set +a`. Check with `echo "$DATABASE_URL"`.
+  `set -a; . ./.env; set +a`. Check with `echo "$DATABASE_URL"`.
 
 ## Tests fail with connection refused
 
