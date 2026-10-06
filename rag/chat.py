@@ -324,8 +324,12 @@ def ask_with_history(
     top_k: int = 6,
     mode: str = "hybrid",
     threshold: float = DEFAULT_THRESHOLD,
+    use_cache: bool = False,
+    chat_model_name: str | None = None,
+    embed_model_name: str | None = None,
+    semantic_threshold: float = 0.95,
 ) -> dict:
-    """One persisted turn: rewrite → ask → save user + assistant rows."""
+    """One persisted turn: rewrite → (cached_)ask → save user+assistant."""
     if conversation_id is None:
         conversation_id = create_conversation(database_url)["id"]
         fresh = True
@@ -336,14 +340,33 @@ def ask_with_history(
     rewrite = rewrite_followup(
         question, history, database_url=database_url, client=client
     )
-    result = ask(
-        rewrite["question"],
-        database_url=database_url,
-        client=client,
-        top_k=top_k,
-        mode=mode,
-        threshold=threshold,
-    )
+    if use_cache:
+        from rag.cache import cached_ask  # lazy: cache imports ask
+
+        if chat_model_name is None or embed_model_name is None:
+            raise HistoryError(
+                "use_cache needs chat_model_name and embed_model_name"
+            )
+        result = cached_ask(
+            rewrite["question"],
+            database_url=database_url,
+            client=client,
+            chat_model=chat_model_name,
+            embed_model=embed_model_name,
+            top_k=top_k,
+            mode=mode,
+            threshold=threshold,
+            semantic_threshold=semantic_threshold,
+        )
+    else:
+        result = ask(
+            rewrite["question"],
+            database_url=database_url,
+            client=client,
+            top_k=top_k,
+            mode=mode,
+            threshold=threshold,
+        )
     save_message(database_url, conversation_id, "user", question)
     save_message(
         database_url,

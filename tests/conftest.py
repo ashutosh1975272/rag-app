@@ -19,7 +19,7 @@ LOCAL_URL = os.environ.get(
 MAINT_URL = os.environ.get(
     "TEST_MAINT_URL", "postgresql://rag:rag@127.0.0.1:55434/rag"
 )
-INIT_REVISION = "20261006_0001"
+INIT_REVISIONS = ["20261006_0001", "20261006_0002"]
 
 
 def _default_empty_url() -> str:
@@ -63,7 +63,7 @@ def migrated_db(test_db_url):
             " app_meta, alembic_version, schema_migrations CASCADE"
         )
     applied = rag_migrate.migrate(test_db_url)
-    assert applied == [INIT_REVISION]
+    assert applied == INIT_REVISIONS
     return test_db_url
 
 
