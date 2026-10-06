@@ -18,6 +18,7 @@ from langchain_core.vectorstores import VectorStore
 
 
 def to_vector_literal(vector: list[float]) -> str:
+    """Render floats as a pgvector text literal."""
     return "[" + ",".join(repr(float(v)) for v in vector) + "]"
 
 
@@ -30,6 +31,7 @@ class ChunksVectorStore(VectorStore):
 
     @property
     def embeddings(self) -> Embeddings:
+        """The injected embeddings object."""
         return self._embeddings
 
     @classmethod
@@ -42,6 +44,7 @@ class ChunksVectorStore(VectorStore):
         ids: list[str] | None = None,
         **kwargs: Any,
     ) -> ChunksVectorStore:
+        """Build a store from texts (DATABASE_URL fallback)."""
         database_url = kwargs.get("database_url") or os.environ.get(
             "DATABASE_URL"
         )
@@ -62,6 +65,7 @@ class ChunksVectorStore(VectorStore):
         ids: list[str] | None = None,
         **kwargs: Any,
     ) -> list[str]:
+        """Embed and insert chunk rows; return new ids."""
         if ids is not None:
             raise ValueError("chunks use database-generated ids; omit ids")
         items = list(texts)
@@ -101,6 +105,7 @@ class ChunksVectorStore(VectorStore):
     def similarity_search_with_score(
         self, query: str, k: int = 4, **kwargs: Any
     ) -> list[tuple[Document, float]]:
+        """Top-k chunks with cosine similarity."""
         vector = self._embeddings.embed_query(query)
         with psycopg.connect(self.database_url) as conn:
             rows = conn.execute(
@@ -130,12 +135,14 @@ class ChunksVectorStore(VectorStore):
     def similarity_search(
         self, query: str, k: int = 4, **kwargs: Any
     ) -> list[Document]:
+        """Top-k chunk Documents."""
         return [
             doc
             for doc, _ in self.similarity_search_with_score(query, k=k)
         ]
 
     def delete(self, ids: list[str] | None = None, **kwargs: Any) -> bool:
+        """Delete chunks by id."""
         if not ids:
             return True
         with psycopg.connect(self.database_url, autocommit=True) as conn:

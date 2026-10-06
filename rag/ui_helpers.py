@@ -21,12 +21,14 @@ from rag.tools_weather import UnknownCity, WeatherError
 
 
 def format_citation(source: dict) -> str:
+    """Format a source as [doc name #chunk]."""
     return f"[{source['doc_name']} #{source['chunk_index']}]"
 
 
 def badge_text(
     route: str | None, latency_ms: int | None, cache_hit: bool
 ) -> str:
+    """One-line route/latency/cache badge ('' when empty)."""
     parts = []
     if route:
         parts.append(route)
@@ -38,6 +40,7 @@ def badge_text(
 
 
 def export_filename(title: str) -> str:
+    """Slugify a title into a .md filename."""
     slug = re.sub(r"[^a-z0-9]+", "-", title.strip().lower()).strip("-")
     return f"{slug or 'chat'}.md"
 

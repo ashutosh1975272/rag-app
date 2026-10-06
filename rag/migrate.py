@@ -40,6 +40,7 @@ def _current_revision(database_url: str, script: ScriptDirectory) -> str | None:
 def migrate(
     database_url: str, alembic_dir: str | None = None
 ) -> list[str]:
+    """Upgrade to head; return applied revisions ([] if current)."""
     directory = pathlib.Path(alembic_dir) if alembic_dir else ALEMBIC_DIR
     cfg = _config(database_url, directory)
     script = ScriptDirectory.from_config(cfg)

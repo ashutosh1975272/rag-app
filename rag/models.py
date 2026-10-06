@@ -32,10 +32,11 @@ EMBEDDING_DIM = 2048
 
 
 class Base(DeclarativeBase):
-    pass
+    """Declarative base for all app tables."""
 
 
 class Document(Base):
+    """documents table: one row per ingested file."""
     __tablename__ = "documents"
 
     id: Mapped[int] = mapped_column(
@@ -54,6 +55,7 @@ class Document(Base):
 
 
 class Chunk(Base):
+    """chunks table: text + embedding + full-text vector."""
     __tablename__ = "chunks"
 
     id: Mapped[int] = mapped_column(
@@ -77,6 +79,7 @@ class Chunk(Base):
 
 
 class Conversation(Base):
+    """conversations table: one chat thread."""
     __tablename__ = "conversations"
 
     id: Mapped[int] = mapped_column(
@@ -94,6 +97,7 @@ class Conversation(Base):
 
 
 class Message(Base):
+    """messages table: one turn with route/latency/feedback."""
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(
@@ -119,6 +123,7 @@ class Message(Base):
 
 
 class EmbeddingCache(Base):
+    """embedding_cache table: text sha to vector."""
     __tablename__ = "embedding_cache"
 
     text_sha256: Mapped[str] = mapped_column(Text, primary_key=True)
@@ -132,6 +137,7 @@ class EmbeddingCache(Base):
 
 
 class AnswerCache(Base):
+    """answer_cache table: exact + semantic answer hits."""
     __tablename__ = "answer_cache"
 
     key: Mapped[str] = mapped_column(Text, primary_key=True)
@@ -154,6 +160,7 @@ class AnswerCache(Base):
 
 
 class ToolCache(Base):
+    """tool_cache table: short-TTL JSON payloads."""
     __tablename__ = "tool_cache"
 
     key: Mapped[str] = mapped_column(Text, primary_key=True)
@@ -164,6 +171,7 @@ class ToolCache(Base):
 
 
 class PromptTemplate(Base):
+    """prompt_templates table: versioned prompts."""
     __tablename__ = "prompt_templates"
 
     name: Mapped[str] = mapped_column(Text, primary_key=True)
@@ -178,6 +186,7 @@ class PromptTemplate(Base):
 
 
 class AppMeta(Base):
+    """app_meta table: corpus_version and friends."""
     __tablename__ = "app_meta"
 
     key: Mapped[str] = mapped_column(Text, primary_key=True)

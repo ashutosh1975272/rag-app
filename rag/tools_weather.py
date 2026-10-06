@@ -56,6 +56,7 @@ class UnknownCity(WeatherError):
 
 
 def describe_code(code: int) -> str:
+    """Human label for a WMO weather code."""
     return WMO_DESCRIPTIONS.get(code, f"Code {code}")
 
 

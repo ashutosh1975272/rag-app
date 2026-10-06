@@ -123,6 +123,7 @@ FOLLOWUP_MAX_WORDS = 14
 
 
 def create_conversation(database_url: str, title: str = "New chat") -> dict:
+    """Insert a conversation; return {id, title}."""
     with psycopg.connect(database_url, autocommit=True) as conn:
         row = conn.execute(
             "INSERT INTO conversations (title)"
@@ -134,6 +135,7 @@ def create_conversation(database_url: str, title: str = "New chat") -> dict:
 
 
 def list_conversations(database_url: str) -> list[dict]:
+    """Conversations newest-first with message counts."""
     with psycopg.connect(database_url) as conn:
         rows = conn.execute(
             "SELECT c.id, c.title, c.created_at, c.updated_at,"
@@ -155,6 +157,7 @@ def list_conversations(database_url: str) -> list[dict]:
 
 
 def get_conversation(database_url: str, conversation_id: int) -> dict:
+    """One conversation with ordered messages."""
     with psycopg.connect(database_url) as conn:
         conv = conn.execute(
             "SELECT id, title FROM conversations WHERE id = %s",
@@ -192,6 +195,7 @@ def get_conversation(database_url: str, conversation_id: int) -> dict:
 def rename_conversation(
     database_url: str, conversation_id: int, title: str
 ) -> None:
+    """Rename a conversation (bumps updated_at)."""
     with psycopg.connect(database_url, autocommit=True) as conn:
         conn.execute(
             "UPDATE conversations SET title = %s, updated_at = now()"
@@ -201,6 +205,7 @@ def rename_conversation(
 
 
 def delete_conversation(database_url: str, conversation_id: int) -> None:
+    """Delete a conversation; messages cascade."""
     with psycopg.connect(database_url, autocommit=True) as conn:
         conn.execute(
             "DELETE FROM conversations WHERE id = %s", (conversation_id,)
@@ -218,6 +223,7 @@ def save_message(
     latency_ms: int | None = None,
     cache_hit: bool = False,
 ) -> int:
+    """Append a message; return its id."""
     if role not in VALID_ROLES:
         raise HistoryError(
             f"role must be one of {VALID_ROLES}, got {role!r}"
@@ -249,6 +255,7 @@ def save_message(
 def set_feedback(
     database_url: str, message_id: int, value: int | None
 ) -> None:
+    """Set +1/-1 feedback on a message (None clears)."""
     if value not in (1, -1, None):
         raise HistoryError(f"feedback must be +1, -1, or None, got {value!r}")
     with psycopg.connect(database_url, autocommit=True) as conn:
@@ -300,6 +307,7 @@ def rewrite_followup(
 
 
 def export_markdown(database_url: str, conversation_id: int) -> str:
+    """Render a conversation as Markdown with sources."""
     conv = get_conversation(database_url, conversation_id)
     lines = [f"# {conv['title']}", ""]
     for msg in conv["messages"]:
