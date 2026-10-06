@@ -5,27 +5,15 @@ import streamlit as st
 from rag import chat as chat_api
 from rag import ui_helpers
 from rag.chat import DEFAULT_THRESHOLD
-from rag.nim_client import NimClient
 
 st.set_page_config(page_title="RAG Chat", layout="wide")
-
-
-@st.cache_resource
-def get_client(api_key, base_url, chat_model, embed_model):
-    return NimClient(
-        api_key=api_key,
-        base_url=base_url,
-        chat_model=chat_model,
-        embed_model=embed_model,
-    )
-
 
 cfg, error = ui_helpers.load_or_error()
 if error:
     st.error(error)
     st.stop()
 
-client = get_client(
+client = ui_helpers.get_nim_client(
     cfg.nvidia_api_key, cfg.nim_base_url, cfg.nim_chat_model, cfg.nim_embed_model
 )
 db_url = cfg.database_url

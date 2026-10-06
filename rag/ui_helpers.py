@@ -10,11 +10,12 @@ from __future__ import annotations
 import re
 
 import psycopg
+import streamlit as st
 
 from rag.chat import HistoryError
 from rag.config import load_config
 from rag.ingest import IngestError
-from rag.nim_client import NimAuthError, NimError
+from rag.nim_client import NimAuthError, NimClient, NimError
 from rag.prompts import PromptError
 from rag.tools_weather import UnknownCity, WeatherError
 
@@ -59,6 +60,17 @@ def load_or_error():
             "Set them in your environment (see .env.example) and rerun."
         )
     return cfg, None
+
+
+@st.cache_resource
+def get_nim_client(api_key, base_url, chat_model, embed_model):
+    """Layer-5 cached NIM client shared by all pages."""
+    return NimClient(
+        api_key=api_key,
+        base_url=base_url,
+        chat_model=chat_model,
+        embed_model=embed_model,
+    )
 
 
 def friendly_error(exc: BaseException) -> str:
