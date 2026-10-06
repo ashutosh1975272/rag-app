@@ -20,6 +20,8 @@ import psycopg
 from rag import retrieve
 from rag.llm import build_answer_chain
 from rag.prompts import get_active, seed_defaults
+from rag.router import route as route_message
+from rag.tools_weather import UnknownCity, WeatherError, get_weather
 
 logger = logging.getLogger(__name__)
 
@@ -328,45 +330,79 @@ def ask_with_history(
     chat_model_name: str | None = None,
     embed_model_name: str | None = None,
     semantic_threshold: float = 0.95,
+    redis_url: str | None = None,
 ) -> dict:
-    """One persisted turn: rewrite → (cached_)ask → save user+assistant."""
+    """One persisted turn: route → branch → save user+assistant rows."""
+    start = time.monotonic()
     if conversation_id is None:
         conversation_id = create_conversation(database_url)["id"]
         fresh = True
     else:
         get_conversation(database_url, conversation_id)  # validates
         fresh = False
-    history = get_conversation(database_url, conversation_id)["messages"]
-    rewrite = rewrite_followup(
-        question, history, database_url=database_url, client=client
-    )
-    if use_cache:
-        from rag.cache import cached_ask  # lazy: cache imports ask
-
-        if chat_model_name is None or embed_model_name is None:
-            raise HistoryError(
-                "use_cache needs chat_model_name and embed_model_name"
-            )
-        result = cached_ask(
-            rewrite["question"],
+    routing = route_message(question, database_url=database_url, client=client)
+    if routing["route"] == "weather":
+        result = _weather_turn(
+            question,
+            routing.get("city"),
             database_url=database_url,
-            client=client,
-            chat_model=chat_model_name,
-            embed_model=embed_model_name,
-            top_k=top_k,
-            mode=mode,
-            threshold=threshold,
-            semantic_threshold=semantic_threshold,
+            redis_url=redis_url,
         )
+        rewritten: dict = {"question": question, "rewritten": False}
+    elif routing["route"] == "chitchat":
+        text = client.chat(
+            [
+                {
+                    "role": "system",
+                    "content": "You are a friendly assistant. "
+                    "Reply in one short sentence.",
+                },
+                {"role": "user", "content": question},
+            ]
+        ).strip()
+        result = {
+            "answer": text,
+            "sources": [],
+            "refused": False,
+            "route": "chitchat",
+            "latency_ms": _elapsed_ms(start),
+            "cache_hit": False,
+            "weather": None,
+        }
+        rewritten = {"question": question, "rewritten": False}
     else:
-        result = ask(
-            rewrite["question"],
-            database_url=database_url,
-            client=client,
-            top_k=top_k,
-            mode=mode,
-            threshold=threshold,
+        history = get_conversation(database_url, conversation_id)["messages"]
+        rewritten = rewrite_followup(
+            question, history, database_url=database_url, client=client
         )
+        if use_cache:
+            from rag.cache import cached_ask  # lazy: cache imports ask
+
+            if chat_model_name is None or embed_model_name is None:
+                raise HistoryError(
+                    "use_cache needs chat_model_name and embed_model_name"
+                )
+            result = cached_ask(
+                rewritten["question"],
+                database_url=database_url,
+                client=client,
+                chat_model=chat_model_name,
+                embed_model=embed_model_name,
+                top_k=top_k,
+                mode=mode,
+                threshold=threshold,
+                semantic_threshold=semantic_threshold,
+            )
+        else:
+            result = ask(
+                rewritten["question"],
+                database_url=database_url,
+                client=client,
+                top_k=top_k,
+                mode=mode,
+                threshold=threshold,
+            )
+        result["weather"] = None
     save_message(database_url, conversation_id, "user", question)
     save_message(
         database_url,
@@ -381,6 +417,51 @@ def ask_with_history(
     if fresh:
         rename_conversation(database_url, conversation_id, question[:60])
     result["conversation_id"] = conversation_id
-    result["rewritten"] = rewrite["rewritten"]
-    result["rewritten_question"] = rewrite["question"]
+    result["rewritten"] = rewritten["rewritten"]
+    result["rewritten_question"] = rewritten["question"]
     return result
+
+
+def _weather_turn(
+    question: str,
+    city: str | None,
+    *,
+    database_url: str,
+    redis_url: str | None,
+) -> dict:
+    start = time.monotonic()
+    if not city:
+        return {
+            "answer": "Which city should I check the weather for?",
+            "sources": [],
+            "refused": False,
+            "route": "weather",
+            "latency_ms": _elapsed_ms(start),
+            "cache_hit": False,
+            "weather": None,
+        }
+    try:
+        card = get_weather(city, database_url=database_url, redis_url=redis_url)
+    except (UnknownCity, WeatherError) as exc:
+        return {
+            "answer": str(exc),
+            "sources": [],
+            "refused": False,
+            "route": "weather",
+            "latency_ms": _elapsed_ms(start),
+            "cache_hit": False,
+            "weather": None,
+        }
+    place = f"{card['city']}, {card['country']}".rstrip(", ")
+    return {
+        "answer": (
+            f"{place}: {card['temp_c']}°C, {card['description'].lower()},"
+            f" wind {card['wind_kph']} kph."
+        ),
+        "sources": [],
+        "refused": False,
+        "route": "weather",
+        "latency_ms": _elapsed_ms(start),
+        "cache_hit": card["cached"],
+        "weather": card,
+    }
