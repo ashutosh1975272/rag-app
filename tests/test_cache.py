@@ -48,6 +48,9 @@ class CacheStub:
         self.embed_calls += 1
         return [self._vec(t) for t in texts]
 
+    def chat(self, messages):
+        return "rag"
+
 
 @pytest.fixture(scope="module")
 def cache_corpus(migrated_db):
