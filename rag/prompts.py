@@ -81,24 +81,26 @@ def add_version(
     database_url: str, name: str, content: str, *, activate: bool = True
 ) -> int:
     """Insert a new version; optionally make it the active one."""
-    with psycopg.connect(database_url) as conn:
-        with conn.transaction():
-            row = conn.execute(
-                "SELECT COALESCE(MAX(version), 0) FROM prompt_templates"
-                " WHERE name = %s",
-                (name,),
-            ).fetchone()
-            assert row is not None
-            version = row[0] + 1
+    with (
+        psycopg.connect(database_url) as conn,
+        conn.transaction(),
+    ):
+        row = conn.execute(
+            "SELECT COALESCE(MAX(version), 0) FROM prompt_templates"
+            " WHERE name = %s",
+            (name,),
+        ).fetchone()
+        assert row is not None
+        version = row[0] + 1
+        conn.execute(
+            "INSERT INTO prompt_templates (name, version, content)"
+            " VALUES (%s, %s, %s)",
+            (name, version, content),
+        )
+        if activate:
             conn.execute(
-                "INSERT INTO prompt_templates (name, version, content)"
-                " VALUES (%s, %s, %s)",
-                (name, version, content),
+                "UPDATE prompt_templates SET active = (version = %s)"
+                " WHERE name = %s",
+                (version, name),
             )
-            if activate:
-                conn.execute(
-                    "UPDATE prompt_templates SET active = (version = %s)"
-                    " WHERE name = %s",
-                    (version, name),
-                )
     return version
