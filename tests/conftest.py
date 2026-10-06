@@ -20,6 +20,10 @@ MAINT_URL = os.environ.get(
     "TEST_MAINT_URL", "postgresql://rag:rag@127.0.0.1:55434/rag"
 )
 INIT_REVISION = "20261006_0001"
+EMPTY_URL = os.environ.get(
+    "TEST_EMPTY_DATABASE_URL",
+    "postgresql://rag:rag@127.0.0.1:55434/rag_test_empty",
+)
 
 
 def _test_dbname(url: str) -> str:
@@ -54,3 +58,23 @@ def migrated_db(test_db_url):
     applied = rag_migrate.migrate(test_db_url)
     assert applied == [INIT_REVISION]
     return test_db_url
+
+
+@pytest.fixture(scope="session")
+def empty_db_url(test_db_url):
+    """A second migrated database that tests keep empty (no rows)."""
+    assert rag_db.is_local_database_url(EMPTY_URL), "refusing non-local test DB"
+    dbname = _test_dbname(EMPTY_URL)
+    with psycopg.connect(MAINT_URL, autocommit=True) as conn:
+        exists = conn.execute(
+            "SELECT 1 FROM pg_database WHERE datname = %s", (dbname,)
+        ).fetchone()
+        if not exists:
+            conn.execute(
+                sql.SQL("CREATE DATABASE {}").format(sql.Identifier(dbname))
+            )
+    rag_migrate.migrate(EMPTY_URL)
+    with psycopg.connect(EMPTY_URL, autocommit=True) as conn:
+        conn.execute("DELETE FROM chunks")
+        conn.execute("DELETE FROM documents")
+    return EMPTY_URL
