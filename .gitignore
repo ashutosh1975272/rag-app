@@ -1,0 +1,22 @@
+# secrets / local env (never commit real values)
+.env
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# data / uploads (never commit corpora)
+data/
+uploads/
+*.pdf
+
+# os / ide
+.DS_Store
+.idea/
+.vscode/

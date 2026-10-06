@@ -1,0 +1,79 @@
+"""Shared fixtures: local-Docker Postgres, migrated once per session."""
+
+from __future__ import annotations
+
+import os
+import re
+from urllib.parse import urlparse, urlunparse
+
+import psycopg
+import pytest
+from psycopg import sql
+
+from rag import db as rag_db
+from rag import migrate as rag_migrate
+
+LOCAL_URL = os.environ.get(
+    "TEST_DATABASE_URL", "postgresql://rag:rag@127.0.0.1:55434/rag_test"
+)
+MAINT_URL = os.environ.get(
+    "TEST_MAINT_URL", "postgresql://rag:rag@127.0.0.1:55434/rag"
+)
+INIT_REVISIONS = ["20261006_0001", "20261006_0002"]
+
+
+def _default_empty_url() -> str:
+    parts = urlparse(LOCAL_URL)
+    return urlunparse(parts._replace(path="/rag_test_empty"))
+
+
+EMPTY_URL = os.environ.get("TEST_EMPTY_DATABASE_URL", _default_empty_url())
+
+
+def _test_dbname(url: str) -> str:
+    name = (urlparse(url).path or "").lstrip("/") or "rag_test"
+    assert re.fullmatch(r"[A-Za-z0-9_]+", name), f"unsafe db name: {name!r}"
+    return name
+
+
+def _ensure_database(dbname: str) -> None:
+    with psycopg.connect(MAINT_URL, autocommit=True) as conn:
+        exists = conn.execute(
+            "SELECT 1 FROM pg_database WHERE datname = %s", (dbname,)
+        ).fetchone()
+        if not exists:
+            conn.execute(
+                sql.SQL("CREATE DATABASE {}").format(sql.Identifier(dbname))
+            )
+
+
+@pytest.fixture(scope="session")
+def test_db_url():
+    assert rag_db.is_local_database_url(LOCAL_URL), "refusing non-local test DB"
+    _ensure_database(_test_dbname(LOCAL_URL))
+    return LOCAL_URL
+
+
+@pytest.fixture(scope="session")
+def migrated_db(test_db_url):
+    with psycopg.connect(test_db_url, autocommit=True) as conn:
+        conn.execute(
+            "DROP TABLE IF EXISTS chunks, messages, documents, conversations,"
+            " embedding_cache, answer_cache, tool_cache, prompt_templates,"
+            " app_meta, alembic_version, schema_migrations CASCADE"
+        )
+    applied = rag_migrate.migrate(test_db_url)
+    assert applied == INIT_REVISIONS
+    return test_db_url
+
+
+@pytest.fixture(scope="session")
+def empty_db_url(test_db_url):
+    """A second migrated database that tests keep empty (no rows)."""
+    assert rag_db.is_local_database_url(EMPTY_URL), "refusing non-local test DB"
+    _ensure_database(_test_dbname(EMPTY_URL))
+    rag_migrate.migrate(EMPTY_URL)
+    with psycopg.connect(EMPTY_URL, autocommit=True) as conn:
+        conn.execute("DELETE FROM chunks")
+        conn.execute("DELETE FROM documents")
+    return EMPTY_URL

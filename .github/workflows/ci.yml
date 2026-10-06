@@ -1,0 +1,83 @@
+# CI: lint + unit/integration tests on every PR; live NIM probes on beta only.
+name: ci
+
+on:
+  pull_request:
+    branches: [beta, main]
+  push:
+    branches: [beta]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: rag
+          POSTGRES_PASSWORD: rag
+          POSTGRES_DB: rag
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rag"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://rag:rag@127.0.0.1:5432/rag_test
+      TEST_MAINT_URL: postgresql://rag:rag@127.0.0.1:5432/rag
+      TEST_EMPTY_DATABASE_URL: postgresql://rag:rag@127.0.0.1:5432/rag_test_empty
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Lint
+        run: ruff check .
+      - name: Test (no live services)
+        run: pytest -q -m "not live"
+
+  live:
+    # Live NIM probes only on beta pushes, and only when the secret exists.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/beta'
+    runs-on: ubuntu-latest
+    needs: lint-test
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: rag
+          POSTGRES_PASSWORD: rag
+          POSTGRES_DB: rag
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rag"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://rag:rag@127.0.0.1:5432/rag_test
+      TEST_MAINT_URL: postgresql://rag:rag@127.0.0.1:5432/rag
+      TEST_EMPTY_DATABASE_URL: postgresql://rag:rag@127.0.0.1:5432/rag_test_empty
+      NIM_CHAT_MODEL: meta/llama-3.2-11b-vision-instruct
+      NIM_EMBED_MODEL: nvidia/nemotron-3-embed-1b
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Live NIM probes
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        run: |
+          if [ -z "$NVIDIA_API_KEY" ]; then
+            echo "NVIDIA_API_KEY secret not set; skipping live probes."
+            exit 0
+          fi
+          pytest -q -m live
