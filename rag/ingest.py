@@ -74,6 +74,7 @@ def ingest_file(
     client,
     chunk_size: int = 800,
     chunk_overlap: int = 100,
+    embed_model: str | None = None,
 ) -> dict:
     """Ingest one file; returns document summary (see module docstring)."""
     if not data:
@@ -86,7 +87,13 @@ def ingest_file(
         )
     sha = hashlib.sha256(data).hexdigest()
     chunks = split_text(text, chunk_size, chunk_overlap)
-    vectors = batch_embed(client, chunks, input_type="passage")
+    vectors = batch_embed(
+        client,
+        chunks,
+        input_type="passage",
+        database_url=database_url,
+        embed_model=embed_model,
+    )
     counts = [count_tokens(c) for c in chunks]
 
     with psycopg.connect(database_url) as conn:
@@ -145,6 +152,7 @@ def ingest_path(
     client,
     chunk_size: int = 800,
     chunk_overlap: int = 100,
+    embed_model: str | None = None,
 ) -> dict:
     """Read *path* from disk and ingest it under its own filename."""
     target = Path(path)
@@ -155,6 +163,7 @@ def ingest_path(
         client=client,
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
+        embed_model=embed_model,
     )
 
 

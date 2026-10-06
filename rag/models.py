@@ -144,6 +144,7 @@ class AnswerCache(Base):
         JSONB, nullable=False, server_default=sa_text("'[]'::jsonb")
     )
     corpus_version: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    prompt_stamp: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=sa_text("now()")
     )
