@@ -43,10 +43,12 @@ __all__ = [
 
 
 def norm_question(question: str) -> str:
+    """Lowercase, trim, and collapse whitespace."""
     return re.sub(r"\s+", " ", question.strip().lower())
 
 
 def text_sha(text: str) -> str:
+    """SHA-256 hex of UTF-8 text."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
@@ -56,6 +58,7 @@ def exact_key(
     model: str,
     prompt_versions: dict,
 ) -> str:
+    """Exact-answer key: norm question + corpus + model + prompts."""
     stamp = f"sys{prompt_versions.get('system')}:ans{prompt_versions.get('answer')}"
     return text_sha(f"{norm_question(question)}|{corpus_version}|{model}|{stamp}")
 
@@ -63,6 +66,7 @@ def exact_key(
 def prompt_stamp(
     chat_model: str, prompt_versions: dict
 ) -> str:
+    """Stamp binding an answer to chat model + prompt versions."""
     return (
         f"{chat_model}|sys{prompt_versions.get('system')}"
         f"|ans{prompt_versions.get('answer')}"

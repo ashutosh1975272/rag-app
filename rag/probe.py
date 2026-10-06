@@ -20,6 +20,7 @@ PROBE_SENTENCE = "dimension probe sentence"
 
 
 def fetch_models(base_url: str, api_key: str, timeout: int = 60) -> list[str]:
+    """List model ids from the NIM models endpoint."""
     req = urllib.request.Request(
         base_url.rstrip("/") + "/models",
         headers={"Authorization": "Bearer " + api_key},
@@ -32,6 +33,7 @@ def fetch_models(base_url: str, api_key: str, timeout: int = 60) -> list[str]:
 def check_configured(
     models: list[str], chat_id: str, embed_id: str
 ) -> dict[str, object]:
+    """Report whether the configured ids are listed."""
     return {
         "count": len(models),
         "chat_ok": chat_id in models,
@@ -40,6 +42,7 @@ def check_configured(
 
 
 def suggest_alternatives(models: list[str]) -> dict[str, list[str]]:
+    """Heuristic embed/chat candidates from a model list."""
     embed = sorted(m for m in models if "embed" in m.lower())
     chat = sorted(
         m
@@ -52,6 +55,7 @@ def suggest_alternatives(models: list[str]) -> dict[str, list[str]]:
 
 
 def main() -> int:
+    """Run the discovery probe; exit 0 on success."""
     base_url = os.environ.get("NIM_BASE_URL") or (
         "https://integrate.api.nvidia.com/v1"
     )

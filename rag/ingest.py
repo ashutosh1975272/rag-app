@@ -51,6 +51,7 @@ def extract_text(data: bytes, filename: str) -> str:
 
 
 def get_corpus_version(database_url: str) -> int:
+    """Current corpus version from app_meta."""
     with psycopg.connect(database_url) as conn:
         row = conn.execute(
             "SELECT value FROM app_meta WHERE key = 'corpus_version'"

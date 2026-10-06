@@ -16,6 +16,7 @@ class ConfigError(ValueError):
 
 @dataclass(frozen=True)
 class Config:
+    """Typed settings loaded from environment variables."""
     database_url: str | None = None
     redis_url: str | None = None
     nvidia_api_key: str | None = None
@@ -50,6 +51,7 @@ def _get_float(env: Mapping[str, str], name: str, default: float) -> float:
 
 
 def load_config(env: Mapping[str, str] | None = None) -> Config:
+    """Read settings from the environment."""
     src: Mapping[str, str] = os.environ if env is None else env
     return Config(
         database_url=src.get("DATABASE_URL") or None,
@@ -67,6 +69,7 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
 
 
 def require(value: str | None, name: str) -> str:
+    """Return the value or raise ConfigError naming the variable."""
     if not value:
         raise ConfigError(f"Missing required setting: {name}")
     return value

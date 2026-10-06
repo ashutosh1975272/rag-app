@@ -162,6 +162,7 @@ class NimClient:
 
     @property
     def attempts(self) -> int:
+        """Total attempts per call (1 + max_retries)."""
         return self.max_retries + 1
 
     @property
