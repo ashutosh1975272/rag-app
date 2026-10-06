@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import psycopg
 import pytest
@@ -22,16 +22,21 @@ MAINT_URL = os.environ.get(
 INIT_REVISION = "20261006_0001"
 
 
+def _default_empty_url() -> str:
+    parts = urlparse(LOCAL_URL)
+    return urlunparse(parts._replace(path="/rag_test_empty"))
+
+
+EMPTY_URL = os.environ.get("TEST_EMPTY_DATABASE_URL", _default_empty_url())
+
+
 def _test_dbname(url: str) -> str:
     name = (urlparse(url).path or "").lstrip("/") or "rag_test"
     assert re.fullmatch(r"[A-Za-z0-9_]+", name), f"unsafe db name: {name!r}"
     return name
 
 
-@pytest.fixture(scope="session")
-def test_db_url():
-    assert rag_db.is_local_database_url(LOCAL_URL), "refusing non-local test DB"
-    dbname = _test_dbname(LOCAL_URL)
+def _ensure_database(dbname: str) -> None:
     with psycopg.connect(MAINT_URL, autocommit=True) as conn:
         exists = conn.execute(
             "SELECT 1 FROM pg_database WHERE datname = %s", (dbname,)
@@ -40,6 +45,12 @@ def test_db_url():
             conn.execute(
                 sql.SQL("CREATE DATABASE {}").format(sql.Identifier(dbname))
             )
+
+
+@pytest.fixture(scope="session")
+def test_db_url():
+    assert rag_db.is_local_database_url(LOCAL_URL), "refusing non-local test DB"
+    _ensure_database(_test_dbname(LOCAL_URL))
     return LOCAL_URL
 
 
@@ -54,3 +65,15 @@ def migrated_db(test_db_url):
     applied = rag_migrate.migrate(test_db_url)
     assert applied == [INIT_REVISION]
     return test_db_url
+
+
+@pytest.fixture(scope="session")
+def empty_db_url(test_db_url):
+    """A second migrated database that tests keep empty (no rows)."""
+    assert rag_db.is_local_database_url(EMPTY_URL), "refusing non-local test DB"
+    _ensure_database(_test_dbname(EMPTY_URL))
+    rag_migrate.migrate(EMPTY_URL)
+    with psycopg.connect(EMPTY_URL, autocommit=True) as conn:
+        conn.execute("DELETE FROM chunks")
+        conn.execute("DELETE FROM documents")
+    return EMPTY_URL
