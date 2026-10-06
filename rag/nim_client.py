@@ -164,6 +164,11 @@ class NimClient:
     def attempts(self) -> int:
         return self.max_retries + 1
 
+    @property
+    def chat_model(self):
+        """The underlying LangChain chat model (for LCEL chains)."""
+        return self._chat
+
     def _call(self, fn: Callable[[], object]) -> object:
         try:
             return self._retry(fn)()
