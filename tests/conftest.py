@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import psycopg
 import pytest
@@ -20,10 +20,14 @@ MAINT_URL = os.environ.get(
     "TEST_MAINT_URL", "postgresql://rag:rag@127.0.0.1:55434/rag"
 )
 INIT_REVISION = "20261006_0001"
-EMPTY_URL = os.environ.get(
-    "TEST_EMPTY_DATABASE_URL",
-    "postgresql://rag:rag@127.0.0.1:55434/rag_test_empty",
-)
+
+
+def _default_empty_url() -> str:
+    parts = urlparse(LOCAL_URL)
+    return urlunparse(parts._replace(path="/rag_test_empty"))
+
+
+EMPTY_URL = os.environ.get("TEST_EMPTY_DATABASE_URL", _default_empty_url())
 
 
 def _test_dbname(url: str) -> str:
