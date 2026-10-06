@@ -7,7 +7,17 @@ loudly instead of silently changing the unit to characters.
 
 from __future__ import annotations
 
+import tiktoken
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+_ENCODER = tiktoken.get_encoding("cl100k_base")
+
+
+def count_tokens(text: str) -> int:
+    """Token count under the same encoder the splitter uses."""
+    if not text:
+        return 0
+    return len(_ENCODER.encode(text))
 
 
 def make_splitter(

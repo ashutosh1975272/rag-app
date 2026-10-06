@@ -17,7 +17,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
 
 
-def _to_vector_literal(vector: list[float]) -> str:
+def to_vector_literal(vector: list[float]) -> str:
     return "[" + ",".join(repr(float(v)) for v in vector) + "]"
 
 
@@ -90,7 +90,7 @@ class ChunksVectorStore(VectorStore):
                         meta["ord"],
                         text,
                         meta.get("token_count"),
-                        _to_vector_literal(vector),
+                        to_vector_literal(vector),
                         psycopg.types.json.Json(meta.get("extra", {})),
                     ),
                 ).fetchone()
@@ -109,7 +109,7 @@ class ChunksVectorStore(VectorStore):
                 " FROM chunks c JOIN documents d ON d.id = c.document_id"
                 " WHERE c.embedding IS NOT NULL"
                 " ORDER BY c.embedding <=> %s::vector LIMIT %s",
-                (_to_vector_literal(vector), _to_vector_literal(vector), k),
+                (to_vector_literal(vector), to_vector_literal(vector), k),
             ).fetchall()
         return [
             (
